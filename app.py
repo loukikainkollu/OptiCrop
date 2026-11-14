@@ -125,7 +125,6 @@ def render_login_wall():
 
     col_left, col_center, col_right = st.columns([1, 1.4, 1])
     with col_center:
-        # Prominent 1-Click Instant Access Card for Reviewers / Guests
         st.info(
             "👋 **Visiting Reviewer or Guest?** Jump straight into the interactive dashboard "
             "without typing credentials."
@@ -183,7 +182,6 @@ def render_dashboard():
     model, scaler, le, df = load_or_train_artifacts()
     numeric_cols = ['N', 'P', 'K', 'temperature', 'humidity', 'ph', 'rainfall']
 
-    # Sidebar Navigation & Session Info
     with st.sidebar:
         st.markdown("## 🌾 OptiCrop Advisor")
         st.caption(f"Signed in as: **{st.session_state.username}** ({st.session_state.user_role})")
@@ -203,15 +201,11 @@ def render_dashboard():
         )
         st.markdown("---")
         st.markdown(
-            "**System Highlights**
-"
-            "- **Best Model:** Random Forest (99.55%)
-"
-            "- **Dataset:** 2,200 soil & climate samples
-"
-            "- **Crops Supported:** 22 varieties
-"
-            "- **Explainability:** Top-3 Confidence + Ideal Profile Comparison"
+            """**System Highlights**
+- **Best Model:** Random Forest (99.55%)
+- **Dataset:** 2,200 soil & climate samples
+- **Crops Supported:** 22 varieties
+- **Explainability:** Top-3 Confidence + Ideal Profile Comparison"""
         )
 
     # ------------------------------------------------------------
@@ -224,7 +218,6 @@ def render_dashboard():
             "confidence-calibrated crop recommendations."
         )
 
-        # Quick Preset Scenarios for rapid testing
         st.subheader("⚡ Quick Regional Presets")
         p_col1, p_col2, p_col3, p_col4 = st.columns(4)
         if "preset" not in st.session_state:
@@ -257,7 +250,6 @@ def render_dashboard():
 
             save_btn = st.button("📌 Log Scenario to Session History", use_container_width=True)
 
-        # Real-time inference
         input_array = np.array([[n_val, p_val, k_val, temp_val, hum_val, ph_val, rain_val]])
         input_scaled = scaler.transform(input_array)
         probs = model.predict_proba(input_scaled)[0]
@@ -293,7 +285,6 @@ def render_dashboard():
                 st.write(f"**#{rank} {crop_name.title()}** ({season_tag}) — `{conf:.1f}%`")
                 st.progress(min(max(int(round(conf)), 1), 100))
 
-            # Explainability: Compare user's inputs vs ideal historical ranges for the recommended crop
             st.markdown(f"#### 🔍 Why **{best_crop.title()}**? (Your Input vs. Ideal Crop Profile)")
             crop_subset = df[df['label'] == best_crop][numeric_cols]
             ideal_means = crop_subset.mean()
@@ -373,79 +364,4 @@ def render_dashboard():
             if os.path.exists(p_imp):
                 st.image(p_imp, caption="Correlation with Target Crop Labels", use_container_width=True)
             if os.path.exists(p_pair):
-                with st.expander("🔍 View Full High-Resolution Multivariate Pairplot"):
-                    st.image(p_pair, caption="Pairplot Across All 7 Agronomic Features", use_container_width=True)
-
-    # ------------------------------------------------------------
-    # PAGE 3: MODEL BENCHMARKS & METRICS
-    # ------------------------------------------------------------
-    elif nav == "🏆 Model Benchmarks & Metrics":
-        st.title("🏆 Machine Learning Model Evaluation & Benchmarks")
-        st.markdown("Comparative evaluation of 7 supervised classifiers and K-Means clustering on stratified 80/20 splits.")
-
-        m_col1, m_col2, m_col3, m_col4 = st.columns(4)
-        m_col1.metric("Best Classifier", "Random Forest")
-        m_col2.metric("Test Accuracy", "99.55%")
-        m_col3.metric("Macro F1-Score", "1.00")
-        m_col4.metric("Test Samples", "440 (20% Split)")
-
-        c1, c2 = st.columns(2)
-        p_comp = os.path.join(RESULTS_DIR, "model_comparison.png")
-        p_fimp = os.path.join(RESULTS_DIR, "feature_importance.png")
-        p_cm = os.path.join(RESULTS_DIR, "confusion_matrix.png")
-        p_elbow = os.path.join(RESULTS_DIR, "elbow_curve.png")
-
-        if os.path.exists(p_comp):
-            c1.image(p_comp, caption="Accuracy Comparison Across 7 Classifiers", use_container_width=True)
-        if os.path.exists(p_fimp):
-            c2.image(p_fimp, caption="Random Forest Gini Feature Importance (Rainfall & Humidity Lead)", use_container_width=True)
-
-        c3, c4 = st.columns([1.3, 1])
-        if os.path.exists(p_cm):
-            c3.image(p_cm, caption="Confusion Matrix on 440 Held-Out Test Samples", use_container_width=True)
-        if os.path.exists(p_elbow):
-            c4.image(p_elbow, caption="K-Means Elbow Curve for Agro-Climatic Zoning (k=5)", use_container_width=True)
-
-        report_path = os.path.join(RESULTS_DIR, "classification_report.txt")
-        if os.path.exists(report_path):
-            with st.expander("📄 View Full Precision / Recall / F1 Classification Report"):
-                with open(report_path, "r", encoding="utf-8") as f:
-                    st.code(f.read(), language="text")
-
-    # ------------------------------------------------------------
-    # PAGE 4: DATASET & SEASONAL EXPLORER
-    # ------------------------------------------------------------
-    elif nav == "📋 Dataset & Seasonal Explorer":
-        st.title("📋 Agronomic Dataset & Seasonal Crop Explorer")
-        col_f1, col_f2 = st.columns(2)
-        selected_seasons = col_f1.multiselect(
-            "Filter by Cropping Season",
-            options=sorted(df['Season'].unique()),
-            default=sorted(df['Season'].unique())
-        )
-        available_crops = sorted(df[df['Season'].isin(selected_seasons)]['label'].unique())
-        selected_crops = col_f2.multiselect(
-            "Filter by Specific Crops",
-            options=available_crops,
-            default=available_crops[:6] if len(available_crops) > 6 else available_crops
-        )
-
-        filtered_df = df[df['Season'].isin(selected_seasons)]
-        if selected_crops:
-            filtered_df = filtered_df[filtered_df['label'].isin(selected_crops)]
-
-        st.markdown(f"**Showing {len(filtered_df)} of {len(df)} records**")
-        st.dataframe(filtered_df, use_container_width=True, hide_index=True)
-
-        st.subheader("📊 Mean Agronomic Profile by Selected Crop")
-        if not filtered_df.empty:
-            summary_df = filtered_df.groupby(['label', 'Season'])[numeric_cols].mean().round(2).reset_index()
-            st.dataframe(summary_df, use_container_width=True, hide_index=True)
-
-# ============================================================
-# ENTRYPOINT ROUTER
-# ============================================================
-if not st.session_state.authenticated:
-    render_login_wall()
-else:
-    render_dashboard()
+                with st.expander("🔍 View Full High-Resolution
